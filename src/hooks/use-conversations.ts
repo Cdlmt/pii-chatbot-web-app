@@ -31,10 +31,11 @@ export function useConversations(): UseConversationsReturn {
       if (response.ok) {
         const data = await response.json();
         return data.messages.map(
-          (msg: { role: "user" | "assistant"; content: string }) => ({
+          (msg: { role: "user" | "assistant"; content: string; sensitiveRanges?: Array<{ start: number; end: number; type: string }> }) => ({
             id: crypto.randomUUID(),
             role: msg.role,
             content: msg.content,
+            sensitiveRanges: msg.sensitiveRanges,
           })
         );
       }
