@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { SensitiveRange } from "@/lib/types";
-
-const SENSITIVE_MARKER = "\n[SENSITIVE_RANGES]";
+import { streamReader } from "@/lib/stream-parser";
 
 export interface ChatMessage {
   id: string;
@@ -25,24 +24,12 @@ interface UseStreamingChatReturn {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
 
-function parseStreamContent(fullContent: string): {
-  content: string;
-  sensitiveRanges?: SensitiveRange[];
-} {
-  const markerIndex = fullContent.indexOf(SENSITIVE_MARKER);
-  if (markerIndex === -1) {
-    return { content: fullContent };
-  }
-
-  const content = fullContent.slice(0, markerIndex);
-  const rangesJson = fullContent.slice(markerIndex + SENSITIVE_MARKER.length);
-
-  try {
-    const sensitiveRanges = JSON.parse(rangesJson) as SensitiveRange[];
-    return { content, sensitiveRanges };
-  } catch {
-    return { content };
-  }
+function updateMessage(
+  id: string,
+  update: Partial<ChatMessage>
+): (prev: ChatMessage[]) => ChatMessage[] {
+  return (prev) =>
+    prev.map((msg) => (msg.id === id ? { ...msg, ...update } : msg));
 }
 
 export function useStreamingChat({
@@ -62,18 +49,14 @@ export function useStreamingChat({
         role: "user",
         content: text,
       };
-
-      setMessages((prev) => [...prev, userMessage]);
-      setIsLoading(true);
-
       const assistantMessageId = crypto.randomUUID();
 
       setMessages((prev) => [
         ...prev,
+        userMessage,
         { id: assistantMessageId, role: "assistant", content: "" },
       ]);
-
-      let fullContent = "";
+      setIsLoading(true);
 
       try {
         const response = await fetch("/api/chat", {
@@ -82,45 +65,19 @@ export function useStreamingChat({
           body: JSON.stringify({ message: text, conversationId }),
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to send message");
-        }
+        if (!response.ok) throw new Error("Failed to send message");
 
         const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("No response body");
-        }
+        if (!reader) throw new Error("No response body");
 
-        const decoder = new TextDecoder();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          fullContent += chunk;
-
-          const { content, sensitiveRanges } = parseStreamContent(fullContent);
-
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content, sensitiveRanges }
-                : msg
-            )
-          );
+        for await (const { content, sensitiveRanges } of streamReader(reader)) {
+          setMessages(updateMessage(assistantMessageId, { content, sensitiveRanges }));
         }
 
         onComplete?.();
       } catch (error) {
         console.error("Error sending message:", error);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessageId
-              ? { ...msg, content: "Error: Failed to get response" }
-              : msg
-          )
-        );
+        setMessages(updateMessage(assistantMessageId, { content: "Error: Failed to get response" }));
       } finally {
         setIsLoading(false);
       }

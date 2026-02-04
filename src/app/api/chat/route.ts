@@ -1,9 +1,15 @@
 import { conversationRepository } from '@/lib/repository';
 import { chatStreamMessages } from '@/lib/llm';
-import { detectSensitiveInfo } from '@/lib/sanitizer';
-import type { Message } from '@/lib/types';
-
-export const SENSITIVE_MARKER = '\n[SENSITIVE_RANGES]';
+import {
+  detectSensitiveInfo,
+  detectSensitiveInfoSync,
+  mergeRanges,
+} from '@/lib/sanitizer';
+import {
+  SENSITIVE_MARKER,
+  SENSITIVE_UPDATE_MARKER,
+} from '@/lib/stream-parser';
+import type { Message, SensitiveRange } from '@/lib/types';
 
 export async function POST(req: Request) {
   const { message, conversationId } = await req.json();
@@ -31,6 +37,7 @@ export async function POST(req: Request) {
 
   const encoder = new TextEncoder();
   let fullText = '';
+  let lastSentRanges: SensitiveRange[] = [];
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -43,15 +50,27 @@ export async function POST(req: Request) {
 
           fullText += value;
           controller.enqueue(encoder.encode(value));
+
+          const currentRanges = detectSensitiveInfoSync(fullText);
+
+          if (currentRanges.length > lastSentRanges.length) {
+            lastSentRanges = currentRanges;
+            controller.enqueue(
+              encoder.encode(
+                SENSITIVE_UPDATE_MARKER + JSON.stringify(currentRanges)
+              )
+            );
+          }
         }
 
-        const sensitiveRanges = await detectSensitiveInfo(fullText);
+        const llmRanges = await detectSensitiveInfo(fullText);
+        const finalRanges = mergeRanges(lastSentRanges, llmRanges);
 
         const assistantMessage: Message = {
           role: 'assistant',
           content: fullText,
           rawContent: fullText,
-          sensitiveRanges,
+          sensitiveRanges: finalRanges,
           createdAt: new Date(),
         };
         await conversationRepository.addMessage(
@@ -60,7 +79,7 @@ export async function POST(req: Request) {
         );
 
         controller.enqueue(
-          encoder.encode(SENSITIVE_MARKER + JSON.stringify(sensitiveRanges))
+          encoder.encode(SENSITIVE_MARKER + JSON.stringify(finalRanges))
         );
         controller.close();
       } catch (error) {
