@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { chat } from '@/lib/llm';
+import { chat } from '@/services/llm';
 import type { ConversationRepository } from './interface';
 import type {
   Conversation,

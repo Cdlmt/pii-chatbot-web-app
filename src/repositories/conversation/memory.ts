@@ -1,4 +1,4 @@
-import { chat } from '@/lib/llm';
+import { chat } from '@/services/llm';
 import type { ConversationRepository } from './interface';
 import type { Conversation, ConversationSummary, Message } from '@/lib/types';
 

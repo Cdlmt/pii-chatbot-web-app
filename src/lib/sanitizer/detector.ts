@@ -1,5 +1,5 @@
 import { generateText } from 'ai';
-import { lightModel } from '../llm';
+import { lightModel } from '@/services/llm';
 import { SENSITIVE_PATTERNS, SANITIZER_PROMPT } from './patterns';
 import type { SensitiveRange } from '../types';
 
