@@ -2,55 +2,12 @@
 
 import { useState } from "react";
 import type { SensitiveRange } from "@/lib/types";
+import { ShieldIcon } from "@/components/ui/icons";
+import { buildTextSegments, type TextSegment } from "@/lib/text-segments";
 
 interface BlurredTextProps {
   content: string;
   sensitiveRanges?: SensitiveRange[];
-}
-
-interface TextSegment {
-  text: string;
-  isSensitive: boolean;
-  rangeIndex?: number;
-}
-
-function buildSegments(
-  content: string,
-  ranges: SensitiveRange[]
-): TextSegment[] {
-  if (ranges.length === 0) {
-    return [{ text: content, isSensitive: false }];
-  }
-
-  const sortedRanges = [...ranges].sort((a, b) => a.start - b.start);
-  const segments: TextSegment[] = [];
-  let currentIndex = 0;
-
-  sortedRanges.forEach((range, index) => {
-    if (range.start > currentIndex) {
-      segments.push({
-        text: content.slice(currentIndex, range.start),
-        isSensitive: false,
-      });
-    }
-
-    segments.push({
-      text: content.slice(range.start, range.end),
-      isSensitive: true,
-      rangeIndex: index,
-    });
-
-    currentIndex = range.end;
-  });
-
-  if (currentIndex < content.length) {
-    segments.push({
-      text: content.slice(currentIndex),
-      isSensitive: false,
-    });
-  }
-
-  return segments;
 }
 
 export function BlurredText({ content, sensitiveRanges = [] }: BlurredTextProps) {
@@ -68,11 +25,11 @@ export function BlurredText({ content, sensitiveRanges = [] }: BlurredTextProps)
     });
   };
 
-  const segments = buildSegments(content, sensitiveRanges);
+  const segments = buildTextSegments(content, sensitiveRanges);
 
   return (
-    <span className="whitespace-pre-wrap">
-      {segments.map((segment, index) => {
+    <span className="whitespace-pre-wrap leading-relaxed">
+      {segments.map((segment: TextSegment, index: number) => {
         if (!segment.isSensitive) {
           return <span key={index}>{segment.text}</span>;
         }
@@ -83,16 +40,23 @@ export function BlurredText({ content, sensitiveRanges = [] }: BlurredTextProps)
           <span
             key={index}
             onClick={() => toggleRange(segment.rangeIndex!)}
-            className={`cursor-pointer transition-all duration-200 rounded px-0.5 ${
-              isRevealed
-                ? "bg-yellow-200 dark:bg-yellow-800"
-                : "bg-gray-300 dark:bg-gray-600 select-none"
-            }`}
+            className={`
+              relative cursor-pointer rounded-md px-1 py-0.5 mx-0.5
+              transition-all duration-300 ease-out
+              inline-flex items-center gap-1
+              ${isRevealed
+                ? "bg-(--accent-muted) text-foreground"
+                : "bg-(--background-tertiary) text-transparent select-none hover:bg-(--accent-muted)/50"
+              }
+            `}
             style={{
-              filter: isRevealed ? "none" : "blur(4px)",
+              filter: isRevealed ? "none" : "blur(5px)",
             }}
-            title={isRevealed ? "Click to hide" : "Click to reveal"}
+            title={isRevealed ? "Click to protect" : "Click to reveal sensitive data"}
           >
+            {!isRevealed && (
+              <ShieldIcon className="w-3 h-3 text-(--accent) absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-80" style={{ filter: "none" }} />
+            )}
             {segment.text}
           </span>
         );

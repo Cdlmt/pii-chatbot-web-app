@@ -1,7 +1,9 @@
 "use client";
 
-import { BlurredText } from "@/components/blurred-text";
 import { ChatHistorySidebar } from "@/components/chat-history-sidebar";
+import { EmptyState } from "@/components/chat/empty-state";
+import { MessageList } from "@/components/chat/message-list";
+import { ChatInput } from "@/components/chat/chat-input";
 import { useConversations } from "@/hooks/use-conversations";
 import { useStreamingChat } from "@/hooks/use-streaming-chat";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +12,7 @@ export default function Home() {
   const [conversationId, setConversationId] = useState(() => crypto.randomUUID());
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { conversations, fetchConversations, loadConversation } = useConversations();
   const { messages, sendMessage, isLoading, setMessages } = useStreamingChat({
@@ -20,6 +23,10 @@ export default function Home() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [conversationId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,7 +53,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-background">
       <ChatHistorySidebar
         conversations={conversations}
         selectedId={conversationId}
@@ -54,62 +61,36 @@ export default function Home() {
         onNewChat={handleNewChat}
       />
 
-      <div className="flex flex-col flex-1 max-w-2xl mx-auto">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <p className="text-center text-gray-500 mt-8">
-              Send a message to start the conversation
-            </p>
-          )}
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 dark:bg-gray-800 text-foreground"
-                }`}
-              >
-                {message.role === "assistant" ? (
-                  <BlurredText
-                    content={message.content}
-                    sensitiveRanges={message.sensitiveRanges}
-                  />
-                ) : (
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                )}
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
+      <main className="flex flex-col flex-1 relative">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute top-1/4 -right-32 w-96 h-96 rounded-full opacity-[0.03]"
+            style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
+          />
+          <div
+            className="absolute -bottom-32 left-1/4 w-[500px] h-[500px] rounded-full opacity-[0.02]"
+            style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
+          />
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="border-t border-gray-200 dark:border-gray-800 p-4"
-        >
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-background px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "..." : "Send"}
-            </button>
+        <div className="flex-1 overflow-y-auto relative">
+          <div className="max-w-3xl mx-auto px-6 py-8">
+            {messages.length === 0 ? (
+              <EmptyState onSuggestionClick={setInput} />
+            ) : (
+              <MessageList ref={messagesEndRef} messages={messages} isLoading={isLoading} />
+            )}
           </div>
-        </form>
-      </div>
+        </div>
+
+        <ChatInput
+          ref={inputRef}
+          value={input}
+          onChange={setInput}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
+      </main>
     </div>
   );
 }
