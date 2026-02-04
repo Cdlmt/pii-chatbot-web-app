@@ -1,4 +1,4 @@
-import { conversationRepository } from '@/lib/repository';
+import { conversationRepository } from '@/repositories/conversation';
 
 export async function GET() {
   const summaries = await conversationRepository.getConversationSummaries();

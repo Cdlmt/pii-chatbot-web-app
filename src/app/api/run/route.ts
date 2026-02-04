@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { conversationRepository } from '@/lib/repository';
+import { conversationRepository } from '@/repositories/conversation';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

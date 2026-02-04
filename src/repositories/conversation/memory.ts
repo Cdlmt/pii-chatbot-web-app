@@ -1,6 +1,6 @@
-import { chat } from './llm';
-import type { ConversationRepository } from './conversation-repository';
-import type { Conversation, ConversationSummary, Message } from './types';
+import { chat } from '@/lib/llm';
+import type { ConversationRepository } from './interface';
+import type { Conversation, ConversationSummary, Message } from '@/lib/types';
 
 declare global {
   var conversationsStore: Map<string, Conversation> | undefined;
@@ -83,6 +83,9 @@ export const memoryConversationRepository: ConversationRepository = {
           updatedAt: conv.updatedAt,
         };
       })
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
   },
 };

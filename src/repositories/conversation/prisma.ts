@@ -1,53 +1,48 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from './prisma';
-import { chat } from './llm';
-import type { ConversationRepository } from './conversation-repository';
+import { prisma } from '@/lib/prisma';
+import { chat } from '@/lib/llm';
+import type { ConversationRepository } from './interface';
 import type {
   Conversation,
   ConversationSummary,
   Message,
   SensitiveRange,
-} from './types';
+} from '@/lib/types';
 
-function mapPrismaMessageToMessage(
-  prismaMessage: {
-    id: string;
-    role: string;
-    content: string;
-    rawContent: string | null;
-    sensitiveRanges: unknown;
-    createdAt: Date;
-  }
-): Message {
+interface PrismaMessage {
+  id: string;
+  role: string;
+  content: string;
+  rawContent: string | null;
+  sensitiveRanges: unknown;
+  createdAt: Date;
+}
+
+interface PrismaConversation {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  messages: PrismaMessage[];
+}
+
+function mapMessage(prismaMessage: PrismaMessage): Message {
   return {
     role: prismaMessage.role as 'user' | 'assistant',
     content: prismaMessage.content,
     rawContent: prismaMessage.rawContent ?? undefined,
-    sensitiveRanges: prismaMessage.sensitiveRanges as SensitiveRange[] | undefined,
+    sensitiveRanges: prismaMessage.sensitiveRanges as
+      | SensitiveRange[]
+      | undefined,
     createdAt: prismaMessage.createdAt,
   };
 }
 
-function mapPrismaConversationToConversation(
-  prismaConversation: {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    messages: Array<{
-      id: string;
-      role: string;
-      content: string;
-      rawContent: string | null;
-      sensitiveRanges: unknown;
-      createdAt: Date;
-    }>;
-  }
-): Conversation {
+function mapConversation(prismaConversation: PrismaConversation): Conversation {
   return {
     id: prismaConversation.id,
     createdAt: prismaConversation.createdAt,
     updatedAt: prismaConversation.updatedAt,
-    messages: prismaConversation.messages.map(mapPrismaMessageToMessage),
+    messages: prismaConversation.messages.map(mapMessage),
   };
 }
 
@@ -59,7 +54,7 @@ export const prismaConversationRepository: ConversationRepository = {
         include: { messages: { orderBy: { createdAt: 'asc' } } },
       });
       if (existing) {
-        return mapPrismaConversationToConversation(existing);
+        return mapConversation(existing);
       }
     }
 
@@ -69,7 +64,7 @@ export const prismaConversationRepository: ConversationRepository = {
       include: { messages: { orderBy: { createdAt: 'asc' } } },
     });
 
-    return mapPrismaConversationToConversation(conversation);
+    return mapConversation(conversation);
   },
 
   async addMessage(conversationId, message) {
@@ -123,7 +118,7 @@ export const prismaConversationRepository: ConversationRepository = {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return conversations.map(mapPrismaConversationToConversation);
+    return conversations.map(mapConversation);
   },
 
   async getConversation(id) {
@@ -134,7 +129,7 @@ export const prismaConversationRepository: ConversationRepository = {
 
     if (!conversation) return undefined;
 
-    return mapPrismaConversationToConversation(conversation);
+    return mapConversation(conversation);
   },
 
   async getConversationSummaries(): Promise<ConversationSummary[]> {

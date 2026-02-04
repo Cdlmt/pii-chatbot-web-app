@@ -1,4 +1,4 @@
-import type { Conversation, ConversationSummary, Message } from './types';
+import type { Conversation, ConversationSummary, Message } from '@/lib/types';
 
 export interface RunRequestResult {
   conversationId: string;

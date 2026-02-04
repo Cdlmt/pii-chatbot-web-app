@@ -1,4 +1,4 @@
-import { conversationRepository } from '@/lib/repository';
+import { conversationRepository } from '@/repositories/conversation';
 import { chatStreamMessages } from '@/lib/llm';
 import {
   detectSensitiveInfo,
