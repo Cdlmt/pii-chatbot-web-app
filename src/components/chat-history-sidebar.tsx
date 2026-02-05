@@ -23,8 +23,8 @@ export function ChatHistorySidebar({
   isOpen,
   onClose,
 }: ChatHistorySidebarProps) {
-  function handleSelect(id: string) {
-    onSelect(id);
+  async function handleSelect(id: string) {
+    await onSelect(id);
     onClose();
   }
 
